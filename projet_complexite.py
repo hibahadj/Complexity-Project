@@ -15,7 +15,32 @@ Exécution:
 from __future__ import annotations
 
 from collections import deque
+import statistics as stats
 from time import perf_counter
+
+
+_MAX_LABEL_LEN = 20
+
+
+def _normalize_label(value: object) -> str:
+    return "" if value is None else str(value)
+
+
+def _check_label(value: object, *, field_name: str = "Info") -> str | None:
+    """Validate and normalize a node label.
+
+    Teacher constraint: words/strings of length <= 20.
+    Returns the normalized label if valid, else None.
+    """
+
+    label = _normalize_label(value).strip()
+    if label == "":
+        print(f" {field_name} vide. Réessayez.")
+        return None
+    if len(label) > _MAX_LABEL_LEN:
+        print(f" {field_name} trop longue (>{_MAX_LABEL_LEN}). Réessayez.")
+        return None
+    return label
 
 # Tkinter est optionnel (si exécution sans interface graphique)
 try:
@@ -100,12 +125,21 @@ class ArbreVecteur:
     def creer_racine(self, info: str) -> int:
         if not self.est_vide():
             return self.racine
-        self.noeuds.append(NoeudVecteur(info, self.degre, parent=-1))
+
+        info_ok = _check_label(info, field_name="Info racine")
+        if info_ok is None:
+            return -1
+
+        self.noeuds.append(NoeudVecteur(info_ok, self.degre, parent=-1))
         self.racine = 0
         return self.racine
 
     def ajouter_fils(self, parent_index: int, info: str) -> int:
         if parent_index < 0 or parent_index >= len(self.noeuds):
+            return -1
+
+        info_ok = _check_label(info, field_name="Info du nouveau nœud")
+        if info_ok is None:
             return -1
 
         parent = self.noeuds[parent_index]
@@ -115,7 +149,7 @@ class ArbreVecteur:
             return -1
 
         new_index = len(self.noeuds)
-        self.noeuds.append(NoeudVecteur(info, self.degre, parent=parent_index))
+        self.noeuds.append(NoeudVecteur(info_ok, self.degre, parent=parent_index))
         parent.enfants[pos] = new_index
         return new_index
 
@@ -125,10 +159,14 @@ class ArbreVecteur:
 # =============================================================================
 
 
-def creer_racine(arbre: ArbreNaire, info: str) -> Noeud:
+def creer_racine(arbre: ArbreNaire, info: str) -> Noeud | None:
     """Crée la racine de l'arbre. Complexité: O(1)"""
 
-    arbre.racine = Noeud(info)
+    info_ok = _check_label(info, field_name="Info racine")
+    if info_ok is None:
+        return None
+
+    arbre.racine = Noeud(info_ok)
     return arbre.racine
 
 
@@ -138,11 +176,15 @@ def ajouter_fils(arbre: ArbreNaire, parent: Noeud | None, info: str) -> Noeud | 
     if parent is None:
         return None
 
+    info_ok = _check_label(info, field_name="Info du nouveau nœud")
+    if info_ok is None:
+        return None
+
     if parent.nb_enfants() >= arbre.degre:
         print(f"Erreur : degré maximal ({arbre.degre}) atteint pour {parent.info}")
         return None
 
-    nouveau = Noeud(info)
+    nouveau = Noeud(info_ok)
     nouveau.parent = parent
 
     if parent.succ_gauche is None:
@@ -272,7 +314,11 @@ def inserer_noeud(arbre: ArbreNaire, info_parent: str, info_nouveau: str) -> Noe
         print(f" Parent '{info_parent}' non trouvé !")
         return None
 
-    nouveau_noeud = ajouter_fils(arbre, parent, info_nouveau)
+    info_ok = _check_label(info_nouveau, field_name="Info du nouveau nœud")
+    if info_ok is None:
+        return None
+
+    nouveau_noeud = ajouter_fils(arbre, parent, info_ok)
 
     if nouveau_noeud:
         print(f" Nœud '{nouveau_noeud.info}' inséré avec succès sous '{parent.info}'")
@@ -285,14 +331,18 @@ def inserer_noeud(arbre: ArbreNaire, info_parent: str, info_nouveau: str) -> Noe
 def modifier_noeud(arbre: ArbreNaire, info_cible: str, nouvelle_info: str) -> bool:
     """Modifie l'information d'un nœud (par valeur). Complexité: O(n)."""
 
+    nouvelle_ok = _check_label(nouvelle_info, field_name="Nouvelle info")
+    if nouvelle_ok is None:
+        return False
+
     noeud = rechercher(arbre, info_cible)
     if noeud is None:
         print(f" Nœud '{info_cible}' non trouvé !")
         return False
 
     ancienne = noeud.info
-    noeud.info = nouvelle_info
-    print(f" Nœud modifié: '{ancienne}' → '{nouvelle_info}'")
+    noeud.info = nouvelle_ok
+    print(f" Nœud modifié: '{ancienne}' → '{nouvelle_ok}'")
     return True
 
 
@@ -635,22 +685,46 @@ def construire_arbre_complet(nb_noeuds: int, degre: int = 4) -> ArbreNaire:
     return arbre
 
 
-def evaluation_experimentale(taille_list: list[int], degre: int = 4):
-    """Retourne [(n, t_complet, t_sous_arbre_max), ...]"""
+def evaluation_experimentale(taille_list: list[int], degre: int = 4, repeats: int = 30):
+    """Retourne un tableau expérimental.
+
+    Mesure deux opérations :
+    - est_arbre_complet
+    - sous_arbre_complet_maximal
+
+    Pour réduire le bruit, on répète `repeats` fois et on retourne (moyenne, écart-type).
+
+    Retour:
+        [(n, mean_complete, std_complete, mean_max, std_max), ...]
+    """
+
+    if repeats <= 0:
+        repeats = 1
 
     resultats = []
     for n in taille_list:
-        arbre = construire_arbre_complet(n, degre=degre)
+        temps_complet = []
+        temps_max = []
 
-        t0 = perf_counter()
-        _ = est_arbre_complet(arbre)
-        t1 = perf_counter()
+        for _ in range(repeats):
+            arbre = construire_arbre_complet(n, degre=degre)
 
-        t2 = perf_counter()
-        _ = sous_arbre_complet_maximal(arbre)
-        t3 = perf_counter()
+            t0 = perf_counter()
+            _ = est_arbre_complet(arbre)
+            t1 = perf_counter()
 
-        resultats.append((n, t1 - t0, t3 - t2))
+            t2 = perf_counter()
+            _ = sous_arbre_complet_maximal(arbre)
+            t3 = perf_counter()
+
+            temps_complet.append(t1 - t0)
+            temps_max.append(t3 - t2)
+
+        mc = stats.mean(temps_complet)
+        mm = stats.mean(temps_max)
+        sc = stats.pstdev(temps_complet)
+        sm = stats.pstdev(temps_max)
+        resultats.append((n, mc, sc, mm, sm))
 
     return resultats
 
@@ -859,6 +933,16 @@ def _safe_input(prompt: str) -> str | None:
         return None
 
 
+def _validate_label(label: str, *, field_name: str = "Info") -> bool:
+    """Validate a node label according to the assignment constraints.
+
+    The assignment specifies: words/strings of length <= 20.
+    We keep UX minimal: print an error and let the caller return to the menu.
+    """
+
+    return _check_label(label, field_name=field_name) is not None
+
+
 def _need_tree(arbre: ArbreNaire | None) -> bool:
     if arbre is None or arbre.racine is None:
         print(" Arbre vide. Choisissez d'abord 1 ou 2 pour construire un arbre.")
@@ -919,6 +1003,8 @@ def lancer_menu() -> None:
                 print("\nArrêt du programme.")
                 return
             info = raw.strip()
+            if not _validate_label(info, field_name="Info"):
+                continue
             n = rechercher(arbre, info)
             if n:
                 parent = n.parent.info if n.parent else "RACINE"
@@ -940,6 +1026,10 @@ def lancer_menu() -> None:
                 return
             a_info = raw_a.strip()
             b_info = raw_b.strip()
+            if not _validate_label(a_info, field_name="Info du nœud a"):
+                continue
+            if not _validate_label(b_info, field_name="Info du nœud b"):
+                continue
             a = rechercher(arbre, a_info)
             b = rechercher(arbre, b_info)
             chemin = chemin_entre_noeuds(a, b)
@@ -962,6 +1052,10 @@ def lancer_menu() -> None:
                 return
             p = raw_p.strip()
             x = raw_x.strip()
+            if not _validate_label(p, field_name="Info du parent"):
+                continue
+            if not _validate_label(x, field_name="Info du nouveau nœud"):
+                continue
             inserer_noeud(arbre, p, x)
             afficher_largeur(arbre)
             continue
@@ -979,6 +1073,10 @@ def lancer_menu() -> None:
                 return
             old = raw_old.strip()
             new = raw_new.strip()
+            if not _validate_label(old, field_name="Info à modifier"):
+                continue
+            if not _validate_label(new, field_name="Nouvelle info"):
+                continue
             modifier_noeud(arbre, old, new)
             afficher_largeur(arbre)
             continue
@@ -991,6 +1089,8 @@ def lancer_menu() -> None:
                 print("\nArrêt du programme.")
                 return
             info = raw.strip()
+            if not _validate_label(info, field_name="Info du nœud à supprimer"):
+                continue
             supprimer_noeud(arbre, info)
             afficher_largeur(arbre)
             continue
@@ -1003,6 +1103,8 @@ def lancer_menu() -> None:
                 print("\nArrêt du programme.")
                 return
             info = raw.strip()
+            if not _validate_label(info, field_name="Info racine du sous-arbre"):
+                continue
             n = rechercher(arbre, info)
             if n is None:
                 print(" Nœud non trouvé.")
@@ -1035,6 +1137,8 @@ def lancer_menu() -> None:
                 print("\nArrêt du programme.")
                 return
             info = raw.strip()
+            if not _validate_label(info, field_name="Info racine du sous-arbre"):
+                continue
             sous = extraire_sous_arbre(arbre, info)
             if sous is None:
                 continue
@@ -1051,13 +1155,15 @@ def lancer_menu() -> None:
             continue
 
         if choix == "16":
-            tailles = [10, 20, 30, 40, 50, 100]
-            res = evaluation_experimentale(tailles, degre=4)
-            print("\nTableau expérimental (secondes):")
-            print(f"{'n':>6} | {'Tps complet':>12} | {'Tps sous-arbre complet max':>24}")
-            print("-" * 50)
-            for n, t1, t2 in res:
-                print(f"{n:>6} | {t1:>12.6f} | {t2:>24.6f}")
+            tailles = [10, 20, 30, 40, 50, 100, 200, 300, 400, 500]
+            repeats = 30
+            res = evaluation_experimentale(tailles, degre=4, repeats=repeats)
+            print("\nTableau expérimental (moyenne ± écart-type, en secondes):")
+            print(f"repeats = {repeats}")
+            print(f"{'n':>6} | {'complet (mean±std)':>24} | {'max (mean±std)':>24}")
+            print("-" * 60)
+            for n, mc, sc, mm, sm in res:
+                print(f"{n:>6} | {mc:>10.6f}±{sc:<10.6f} | {mm:>10.6f}±{sm:<10.6f}")
             continue
 
         if choix == "17":

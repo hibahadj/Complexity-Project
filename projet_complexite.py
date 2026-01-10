@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """projet_complexite.py - VERSION MONO-FICHIER
 M1 BIOINFO - ALGO Av. et Complexité
 

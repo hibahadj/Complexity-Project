@@ -38,4 +38,3 @@ Une saisie du type `11,22,17` sera traitée comme **une seule étiquette** (et n
 
 ## Rapport
 - Rapport Markdown : [rapport.md](rapport.md)
-- (Si présent) Rapport PDF : `rapport.pdf`

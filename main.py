@@ -1,6 +1,4 @@
-"""main.py - Programme principal (menu)
-M1 BIOINFO - ALGO Av. et Complexité
-"""
+
 
 from menu import lancer_menu
 

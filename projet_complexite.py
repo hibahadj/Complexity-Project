@@ -847,6 +847,18 @@ def _print_menu() -> None:
     print("0) Quitter")
 
 
+def _safe_input(prompt: str) -> str | None:
+    """input() wrapper that avoids tracebacks on Ctrl+C / EOF.
+
+    Returns None if the user cancels (KeyboardInterrupt) or if stdin is closed (EOFError).
+    """
+
+    try:
+        return input(prompt)
+    except (KeyboardInterrupt, EOFError):
+        return None
+
+
 def _need_tree(arbre: ArbreNaire | None) -> bool:
     if arbre is None or arbre.racine is None:
         print(" Arbre vide. Choisissez d'abord 1 ou 2 pour construire un arbre.")
@@ -859,7 +871,11 @@ def lancer_menu() -> None:
 
     while True:
         _print_menu()
-        choix = input("\nVotre choix: ").strip()
+        raw = _safe_input("\nVotre choix: ")
+        if raw is None:
+            print("\nArrêt du programme.")
+            return
+        choix = raw.strip()
 
         if choix == "0":
             print("Au revoir.")
@@ -898,7 +914,11 @@ def lancer_menu() -> None:
         if choix == "6":
             if not _need_tree(arbre):
                 continue
-            info = input("Info à rechercher: ").strip()
+            raw = _safe_input("Info à rechercher: ")
+            if raw is None:
+                print("\nArrêt du programme.")
+                return
+            info = raw.strip()
             n = rechercher(arbre, info)
             if n:
                 parent = n.parent.info if n.parent else "RACINE"
@@ -910,8 +930,16 @@ def lancer_menu() -> None:
         if choix == "7":
             if not _need_tree(arbre):
                 continue
-            a_info = input("Info du nœud a: ").strip()
-            b_info = input("Info du nœud b: ").strip()
+            raw_a = _safe_input("Info du nœud a: ")
+            if raw_a is None:
+                print("\nArrêt du programme.")
+                return
+            raw_b = _safe_input("Info du nœud b: ")
+            if raw_b is None:
+                print("\nArrêt du programme.")
+                return
+            a_info = raw_a.strip()
+            b_info = raw_b.strip()
             a = rechercher(arbre, a_info)
             b = rechercher(arbre, b_info)
             chemin = chemin_entre_noeuds(a, b)
@@ -924,8 +952,16 @@ def lancer_menu() -> None:
         if choix == "8":
             if not _need_tree(arbre):
                 continue
-            p = input("Info du parent: ").strip()
-            x = input("Info du nouveau nœud: ").strip()
+            raw_p = _safe_input("Info du parent: ")
+            if raw_p is None:
+                print("\nArrêt du programme.")
+                return
+            raw_x = _safe_input("Info du nouveau nœud: ")
+            if raw_x is None:
+                print("\nArrêt du programme.")
+                return
+            p = raw_p.strip()
+            x = raw_x.strip()
             inserer_noeud(arbre, p, x)
             afficher_largeur(arbre)
             continue
@@ -933,8 +969,16 @@ def lancer_menu() -> None:
         if choix == "9":
             if not _need_tree(arbre):
                 continue
-            old = input("Info à modifier: ").strip()
-            new = input("Nouvelle info: ").strip()
+            raw_old = _safe_input("Info à modifier: ")
+            if raw_old is None:
+                print("\nArrêt du programme.")
+                return
+            raw_new = _safe_input("Nouvelle info: ")
+            if raw_new is None:
+                print("\nArrêt du programme.")
+                return
+            old = raw_old.strip()
+            new = raw_new.strip()
             modifier_noeud(arbre, old, new)
             afficher_largeur(arbre)
             continue
@@ -942,7 +986,11 @@ def lancer_menu() -> None:
         if choix == "10":
             if not _need_tree(arbre):
                 continue
-            info = input("Info du nœud à supprimer: ").strip()
+            raw = _safe_input("Info du nœud à supprimer: ")
+            if raw is None:
+                print("\nArrêt du programme.")
+                return
+            info = raw.strip()
             supprimer_noeud(arbre, info)
             afficher_largeur(arbre)
             continue
@@ -950,7 +998,11 @@ def lancer_menu() -> None:
         if choix == "11":
             if not _need_tree(arbre):
                 continue
-            info = input("Info racine du sous-arbre (ex: A, B, C, A2): ").strip()
+            raw = _safe_input("Info racine du sous-arbre (ex: A, B, C, A2): ")
+            if raw is None:
+                print("\nArrêt du programme.")
+                return
+            info = raw.strip()
             n = rechercher(arbre, info)
             if n is None:
                 print(" Nœud non trouvé.")
@@ -978,7 +1030,11 @@ def lancer_menu() -> None:
         if choix == "14":
             if not _need_tree(arbre):
                 continue
-            info = input("Info racine du sous-arbre à extraire (ex: C): ").strip()
+            raw = _safe_input("Info racine du sous-arbre à extraire (ex: C): ")
+            if raw is None:
+                print("\nArrêt du programme.")
+                return
+            info = raw.strip()
             sous = extraire_sous_arbre(arbre, info)
             if sous is None:
                 continue
@@ -1013,7 +1069,11 @@ def lancer_menu() -> None:
         if choix == "18":
             print("\n1) Exemple vecteur 1")
             print("2) Exemple vecteur 2")
-            sub = input("Votre choix: ").strip()
+            raw = _safe_input("Votre choix: ")
+            if raw is None:
+                print("\nArrêt du programme.")
+                return
+            sub = raw.strip()
             if sub == "1":
                 av = construire_arbre_vecteur_exemple1(degre=4)
                 afficher_arbre_vecteur(av)

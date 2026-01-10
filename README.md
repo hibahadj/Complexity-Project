@@ -6,7 +6,7 @@ Ce dépôt contient un mini-projet sur les **arbres n-aires (degré 4)**, leurs 
 - Exécutable unique : [projet_complexite.py](projet_complexite.py)
 
 ## Prérequis
-- Python 3.10+ (recommandé: 3.11)
+- Python 3.10+ (recommandé : 3.12 ou 3.13)
 - Aucun package externe
 - (Optionnel) `tkinter` pour l’affichage graphique (option 17 du menu)
 
@@ -34,11 +34,8 @@ Ensuite vous pouvez tester :
 
 ### Format des entrées
 Quand une option demande une information de nœud, il faut saisir **une seule étiquette** (ex: `A`, `B`, `C`, `A2`).
-Une saisie du type `11,22,17` est considérée comme **une seule chaîne** et ne correspondra pas à un nœud.
+Une saisie du type `11,22,17` sera traitée comme **une seule étiquette** (et non pas trois nœuds distincts) et ne correspondra probablement pas à un nœud existant.
 
 ## Rapport
 - Rapport Markdown : [rapport.md](rapport.md)
 - (Si présent) Rapport PDF : `rapport.pdf`
-
-## Nettoyage (optionnel)
-- [tempCodeRunnerFile.py](tempCodeRunnerFile.py) est un fichier temporaire VS Code et peut être supprimé.
